@@ -1,0 +1,13 @@
+module atlas {
+  classifier atlas_production {
+    source http://production.fts.atlas.org:8833
+    key /tcn/atlas/key
+  }
+
+  classifier act1 {
+    from atlas_production
+    filter activity="activity1"
+  }
+
+
+}

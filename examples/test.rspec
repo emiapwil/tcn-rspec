@@ -1,0 +1,61 @@
+module esnet
+
+caltech_ingress <- resource router="juniper1.caltech.edu" ingress="xe-0/0/0"
+cern_egress <- resource router="juniper2.cern.ch.l1" egress="xe-1/0/0"
+
+// all traffic using caltech_ingress must not exceed 15 Gbps
+// all traffic using cern_egress must not exceed 20 Gbps
+policy1 <- private * @ [caltech_ingress, cern_egress] <= [15 Gbps, 20 Gbps]
+
+// all traffic using both caltech_ingress and cern_egress must not exceed 10 Gbps
+policy2 <- private * @ [caltech_ingress & cern_egress] <= 10 Gbps
+
+:activate policy1, policy2
+
+============================================
+
+
+module alto
+
+alto_resource <- { resource alto=https://xxx.sss }
+
+* @ alto_resource ...
+
+atlas @ alto_resource  <= capacity(alto_resource)
+
+=> alto_resource.map(capacity(_))
+
+
+============================================
+
+module atlas
+
+from predefined import project, actitivies
+from esnet import caltech_ingress
+
+atlas <- classifier project="atlas"
+
+classifier atlas {
+    source https://example.atlas.fts.org:8833
+
+    key /tcn/key/atlas.key
+}
+
+act1 <- private classfier activities="act1" from atlas
+act2 <- private classifier activities="act2" from atlas
+
+policy <- {
+  atlas @ caltech_ingress <= 0.3 * capacity(caltech_ingress),
+  private act1 @ caltech_ingress : act2 @ caltech_ingress = 0.5 : 0.5,
+  prviate [ act1 : act2 ~ 0.5 : 0.5 ] @ caltech_ingress
+}
+
+:activate policy
+
+
+  Pol, Rmat, P =>
+
+  [[ classifier_j @ res_k ]]
+=> sum usage of { for all pipe i in classifier_j, Rmat_{i, k} = 1 }
+
+  each policy becomes a linear constraint

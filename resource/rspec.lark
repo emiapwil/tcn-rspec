@@ -1,0 +1,80 @@
+start: command+
+
+command: interactive
+       | module
+       | import
+       | def
+
+module: "module" variable "{" [import | def]+ "}"
+
+import: "import" variable              -> abs_import
+      | "from" variable "import" vars  -> rel_import
+
+vars: single_var
+    | vars "," single_var              -> multi_var
+
+single_var: IDENT                      -> ref
+          | IDENT "=>" IDENT           -> rename
+
+def: classifier_def
+   | resource_def
+   | policy_def
+   | list_def
+
+classifier_def: "classifier" IDENT "{" classifier_attr* "}"
+
+classifier_attr: "from" variable       -> inherit
+               | "source" uri       -> server
+               | "key" uri          -> key
+               | "filter" conditions   -> filter
+
+conditions: IDENT "=" const
+
+or_condition: [or_condition "or"] basic_condition
+
+basic_condition: IDENT op params       -> atom
+               | "(" conditions ")"    -> encap
+
+value: IDENT                           -> vref
+     | const                           -> constant
+
+op: "="                                -> equal
+  | "!="                               -> not_equal
+  | ">"                                -> gt
+  | ">="                               -> ge
+  | "<"                                -> lt
+  | "<="                               -> le
+  | "in"                               -> member
+
+params: const                          -> single_value
+      | "[" [const ","]* const "]"     -> list_value
+
+const: NUMBER
+     | STRING
+
+resource_def:
+
+policy_def:
+
+list_def:
+
+interactive: ":activate" variable
+           | ":deactivate" variable
+
+variable: IDENT
+        | variable "." IDENT
+
+uri: /.+/
+
+IDENT: /[a-zA-Z_][a-zA-Z0-9_]*/
+
+%import common.NUMBER
+%import common.WORD
+%import common.ESCAPED_STRING -> STRING
+%import common (WS, WS_INLINE)
+
+COMMENT: /\/\/[^\n]*/
+
+%ignore WS
+%ignore WS_INLINE
+%ignore COMMENT
