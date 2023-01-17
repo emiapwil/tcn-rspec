@@ -1,6 +1,13 @@
 module atlas {
+  from esnet import caltech_ingress
+
   classifier atlas_production {
     source http://production.fts.atlas.org:8833
+    key /tcn/atlas/key
+  }
+
+  classifier atlas_test {
+    source http://test.fts.atlas.org:8833
     key /tcn/atlas/key
   }
 
@@ -9,5 +16,16 @@ module atlas {
     filter activity="activity1"
   }
 
+  classifier act2 {
+    from atlas_production | atlas_test
+    filter activity="activity2"
+  }
+
+  policy atlas_usage {
+    atlas_production @ caltech_ingress <= 40G
+    atlas_test @ caltech_ingress <= 10G
+    act1 @ caltech_ingress <= 0.3 * caltech_ingress
+    act1 : act2 ~ 1 : 1
+  }
 
 }

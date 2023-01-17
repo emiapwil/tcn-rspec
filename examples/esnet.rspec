@@ -1,0 +1,20 @@
+module esnet {
+
+  resource caltech_ingress {
+    router r1.caltech.es.net
+    ingress xe-0/0/0
+    capacity 100 G
+  }
+
+  resource cern_egress {
+    router r2.cern.es.net
+    egress xe-1/0/0
+    capacity 100 G
+  }
+
+  policy esnet_usage {
+    * @ [caltech_ingress, cern_egress] <= [80G, 80G]
+    * @ [caltech_ingress & cern_egress] <= 50G
+  }
+
+}

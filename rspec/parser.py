@@ -26,6 +26,12 @@ if __name__ == '__main__':
     with open(lark_file, 'r') as f:
         parser = Lark(f.read())
 
-    shell = Shell()
-    shell.set_parser(parser)
-    shell.cmdloop()
+    if len(sys.argv) == 1:
+        shell = Shell()
+        shell.set_parser(parser)
+        shell.cmdloop()
+    else:
+        for spec in sys.argv[2:]:
+            with open(spec, 'r') as f:
+                t = parser.parse(f.read())
+                print(t.pretty())

@@ -23,7 +23,7 @@ def: classifier_def
 
 classifier_def: "classifier" IDENT "{" classifier_attr* "}"
 
-classifier_attr: "from" variable       -> inherit
+classifier_attr: "from" cls_sel     -> inherit
                | "source" uri       -> server
                | "key" uri          -> key
                | "filter" conditions   -> filter
@@ -33,7 +33,7 @@ conditions: IDENT "=" const
 or_condition: [or_condition "or"] basic_condition
 
 basic_condition: IDENT op params       -> atom
-               | "(" conditions ")"    -> encap
+               | "(" conditions ")"    -> encap_cond
 
 value: IDENT                           -> vref
      | const                           -> constant
@@ -52,9 +52,76 @@ params: const                          -> single_value
 const: NUMBER
      | STRING
 
-resource_def:
+resource_def: "resource" IDENT "{" resource_attr* "}"
 
-policy_def:
+resource_attr: "router" uri            -> router
+             | "ingress" uri           -> ingress
+             | "egress" uri            -> egress
+             | "capacity" bw           -> capacity
+
+bw: numeric BW_UNIT
+
+policy_def: "policy" IDENT "{" policy_expr+ "}"
+
+policy_expr: expr EXPR_OP expr                  -> abs
+           | [expr ":"]+ expr "~" [numeric ":"]+ numeric -> rel
+
+EXPR_OP: ">="
+       | "<="
+
+expr: sub_expr                                    -> lift_expr
+    | expr "+" sub_expr                             -> sum
+    | expr "-" sub_expr                             -> div
+
+sub_expr: bw                                      -> abs_constant
+        | rsc_sel2                                -> capacity
+        | classifier_usage [ "@" resource_usage ] -> usage
+        | [numeric "*"]+ sub_expr                 -> l_mult
+        | sub_expr "*" numeric                    -> r_mult
+        | sub_expr "/" numeric                    -> div
+        | "(" expr ")"                            -> expr_encap
+        | "[" [expr ","]* expr "]"                -> vectorize
+
+classifier_usage: cls_expr                        -> cls_lift
+                | "[" [cls_expr ","]* cls_expr "]" -> cls_vec
+
+cls_expr: atom_cls_expr                           -> cls_atom_lift
+
+atom_cls_expr: cls_sel                            -> cls_sel_lift
+
+cls_sel: cls_sel1                                 -> cls_sel1_lift
+       | cls_sel or cls_sel1                      -> cls_union
+
+cls_sel1: cls_sel2                                -> cls_sel2_lift
+        | cls_sel1 and cls_sel2                   -> cls_intersection
+        | cls_sel1 setminus cls_sel2              -> cls_setminus
+        | "(" cls_sel ")"                         -> cls_encap
+
+cls_sel2: IDENT                                   -> cls_ref
+        | "*"                                     -> cls_all
+
+resource_usage: rsc_expr                          -> rsc_lift
+              | "[" [rsc_expr ","]* rsc_expr "]"  -> rsc_vec
+
+rsc_expr: atom_rsc_sel
+
+atom_rsc_sel: rsc_sel
+
+rsc_sel: rsc_sel1
+       | rsc_sel or rsc_sel1
+
+rsc_sel1: rsc_sel2
+        | rsc_sel1 and rsc_sel2
+        | rsc_sel1 setminus rsc_sel2
+        | "(" rsc_sel ")"
+
+rsc_sel2: IDENT
+
+and: "&" | /[Aa][Nn][Dd]/
+
+or: "|" | /[Oo][Rr]/
+
+setminus: "-" | "\\"
 
 list_def:
 
@@ -65,6 +132,11 @@ variable: IDENT
         | variable "." IDENT
 
 uri: /.+/
+
+numeric: NUMBER
+       | NUMBER "." NUMBER
+
+BW_UNIT: /[TtGgMmKk][bps]*/
 
 IDENT: /[a-zA-Z_][a-zA-Z0-9_]*/
 
